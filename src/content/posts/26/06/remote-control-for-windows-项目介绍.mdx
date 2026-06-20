@@ -1,0 +1,138 @@
+---
+author: faithleysath
+pubDatetime: 2026-06-20T12:00:00+08:00
+title: Remote Control for Windows 项目介绍
+slug: remote-control-for-windows-intro
+featured: true
+draft: false
+tags:
+  - Rust
+  - Windows
+  - 远程协助
+  - MCP
+  - faithleysath
+description: "一套临时、可见、可审计的 Windows 远程协助工具，由 Rust 写成，面向授权支持场景，让研发、运维或 Codex agent 通过命令行完成诊断、文件传输、截图和基础 GUI 操作。"
+---
+import GithubBookmark from '@/components/GithubBookmark.astro';
+
+<GithubBookmark
+  owner="faithleysath"
+  repo="remote-control-for-windows"
+  url="https://github.com/faithleysath/remote-control-for-windows"
+  description="临时、可见、可审计的 Windows 远程协助工具"
+  language="Rust"
+  languageColor="#dea584"
+  stars={0}
+  forks={0}
+  license="GPL-3.0"
+/>
+
+`remote-control-for-windows`（简称 RCW）解决的是一个很具体的问题：在授权支持场景下，如何安全地对一台 Windows 机器做临时远程操作，而不引入静默后门或常驻服务。
+
+它不是 TeamViewer 的替代品，也不是木马。作者在 README 里反复强调一句话——**这不是静默远控工具**。
+
+## 定位
+
+RCW 把一次远程协助切成三个角色：
+
+- `rcw-host.exe` 运行在被支持的 Windows 机器上，是一个**可见的控制台进程**，关闭窗口即终止控制。
+- `rcw-server` 是中继服务器，只负责 host/control 之间的消息转发、状态管理和审计，不持有业务逻辑。
+- `rcwctl` 是控制端 CLI，面向研发、脚本或 Codex agent。
+
+```text
+rcwctl  <--WebSocket-->  rcw-server  <--WebSocket-->  rcw-host.exe
+```
+
+所有连接都由 host 或 control 主动发起。被控端上线不需要控制端 token；控制端要打开会话，必须同时持有**服务端控制 token**和**被控端当前 TOTP**。双因子分离设计让任何一端泄漏都不足以单独打开会话。
+
+## 安全模型
+
+这是项目最有意思的部分，也是它和一般远控工具的分界线：
+
+- 被控端是可见控制台进程，操作摘要实时打印在窗口里。
+- 不安装服务、不写入启动项、不隐藏自身、退出后不驻留。
+- 不自动提权，也不绕过 UAC。
+- 剪贴板里分享的连接信息只包含必要的寻址字段，不包含 control token、session token、TOTP seed 或原始机器标识。
+- host、controller、server 三端各自写审计日志。
+
+换句话说，坐在 Windows 机器前的人**随时知道正在发生什么**，并且随时可以拔掉网线（关掉窗口）。
+
+## MCP 模式
+
+`rcwctl` 可以作为 stdio MCP 服务器运行，交给 MCP 客户端长期持有。这是它区别于传统远控 CLI 的另一个特征——**可以直接接到 agent 工具链里**。
+
+```json
+{
+  "mcpServers": {
+    "rcw": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "rcwctl",
+        "--server",
+        "ws://127.0.0.1:7800",
+        "--token",
+        "replace-with-control-token",
+        "mcp"
+      ]
+    }
+  }
+}
+```
+
+MCP 模式下，session 和后台传输任务保存在进程内存里，不污染普通 CLI 的会话文件。`exec` 默认远端运行上限 24 小时，单次 tool call 默认等待 90 秒，未完成时返回一个 server-owned `task_id`，后续可以查询或取消。文件传输用路径型工具走 WebSocket binary frame，不走 base64。
+
+## 当前状态
+
+截至写作时，workspace 版本 `0.1.11`，协议版本 `v6`。主链路已在真实 Windows VM 中完成闭环验证，包括：
+
+- 会话 `connect/status/disconnect`、错误 token/TOTP、`HostBusy`、force reconnect、精确 `host_id` 连接、host 单实例锁。
+- 命令执行、同 session 并发、后台 exec 查询/取消、命令超时清理。
+- 上传/下载及 SHA-256 校验、MCP 文件传输后台任务和取消。
+- 窗口枚举、截图、鼠标移动/点击/滚轮、键盘文本和按键输入。
+- 剪贴板安全边界、防休眠/防熄屏请求、旧 session 失效。
+- 125% DPI 下截图输出物理 1920×1080 全尺寸，坐标在靶场中一致。
+- 本地 Linux 正反向 TCP tunnel smoke。
+
+仍需补齐的早期验证项是在真实标准用户交互桌面启动 `rcw-host.exe` 并最终确认控制台显示 `Privilege: standard user`；管理员 elevated 桌面行为已经验证通过。
+
+## 快速开始
+
+安装控制端：
+
+```bash
+npm install -g rcwctl
+rcwctl --version
+```
+
+启动中继服务器：
+
+```bash
+export RCW_BIND_ADDR=127.0.0.1:7800
+export RCW_CONTROL_TOKEN='replace-with-a-random-token'
+cargo run -p rcw-server
+```
+
+在 Windows 上启动被控端：
+
+```powershell
+.\rcw-host.exe --server ws://<server-host>:7800
+```
+
+控制端打开会话并执行一条命令：
+
+```bash
+export RCW_SERVER_URL=ws://127.0.0.1:7800
+export RCW_CONTROL_TOKEN='replace-with-a-random-token'
+
+rcwctl connect --id <machine-id> --totp <current-totp>
+rcwctl exec --timeout 30s --wait 90s -- pwsh -NoProfile -Command "hostname"
+rcwctl screenshot --output screen.png
+rcwctl disconnect
+```
+
+## 一点评价
+
+RCW 选了一条少走的路：把"远程协助"当成一个**需要被审计、需要被同意、需要被看见**的动作来设计。Rust workspace 拆成 `rcw-common` / `rcw-host-core` / `rcw-host` / `rcw-host-gui` / `rcw-server` / `rcwctl`，职责切得干净；Tauri v2 GUI 和 CLI 共享一套协议，给现场支持的人和给 agent 用的是同一套安全边界。
+
+如果你在做 Codex agent 的工具链、或者需要一种"看得见"的方式远程帮人看 Windows 机器，值得花半小时把它的 E2E 跑一遍。

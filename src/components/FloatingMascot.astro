@@ -1,0 +1,53 @@
+---
+import { getAssetPath } from "@/utils/withBase";
+
+const mascot = {
+  avif: `${getAssetPath("duohuo/logo-girl-450.avif")} 450w, ${getAssetPath("duohuo/logo-girl-800.avif")} 800w`,
+  webp: `${getAssetPath("duohuo/logo-girl-450.webp")} 450w, ${getAssetPath("duohuo/logo-girl-800.webp")} 800w`,
+  png: getAssetPath("duohuo/logo-girl-800.png"),
+};
+---
+
+<aside
+  id="duohuo-mascot"
+  class="pointer-events-none fixed right-1 bottom-1 z-30 w-28 select-none sm:right-4 sm:bottom-3 sm:w-36 md:w-44"
+  aria-hidden="true"
+>
+  <picture>
+    <source type="image/avif" srcset={mascot.avif} sizes="176px" />
+    <source type="image/webp" srcset={mascot.webp} sizes="176px" />
+    <img
+      src={mascot.png}
+      alt=""
+      width="800"
+      height="792"
+      class="duohuo-mascot-image h-auto w-full drop-shadow-[0_18px_28px_rgb(0_0_0/0.22)]"
+      loading="eager"
+      decoding="async"
+    />
+  </picture>
+</aside>
+
+<style>
+  .duohuo-mascot-image {
+    transform-origin: 50% 85%;
+    animation: duohuo-mascot-breathe 4.8s ease-in-out infinite;
+  }
+
+  @keyframes duohuo-mascot-breathe {
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+
+    50% {
+      transform: translateY(-10px) scale(1.012);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .duohuo-mascot-image {
+      animation: none;
+    }
+  }
+</style>
