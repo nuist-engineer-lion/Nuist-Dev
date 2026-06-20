@@ -8,6 +8,7 @@ import Header from "@/components/Header.astro";
 import Footer from "@/components/Footer.astro";
 import Card from "@/components/Card.astro";
 import LinkButton from "@/components/LinkButton.astro";
+import IconEdit from "@/assets/icons/IconEdit.svg";
 import { getSortedPosts } from "@/utils/getSortedPosts";
 import { useTranslations } from "@/i18n";
 import config from "@/config";
@@ -130,10 +131,17 @@ const brands: {
       )
     }
 
-    <div class="my-8 text-center">
+    <div class="my-8 flex flex-wrap items-center justify-center gap-3 text-center">
       <LinkButton href={getRelativeLocaleUrl(locale, "posts")}>
         {t.home.allPosts}
         <IconArrowRight class="inline-block rtl:-rotate-180" />
+      </LinkButton>
+      <LinkButton
+        href={getRelativeLocaleUrl(locale, "contribute")}
+        class="border-border inline-flex items-center gap-2 rounded-md border px-4 py-2"
+      >
+        {t.nav.contribute}
+        <IconEdit class="size-4" />
       </LinkButton>
     </div>
   </main>

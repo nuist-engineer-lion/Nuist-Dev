@@ -2,6 +2,17 @@
 
 <!-- A clear and concise description of what the pull request does. Include any relevant motivation and background. -->
 
+- What changed:
+- Why:
+
+## Post Checklist
+
+- [ ] `src/content/posts/yy/mm/` path is correct
+- [ ] `title`, `description`, and `pubDatetime` are set
+- [ ] GitHub project posts include `author`
+- [ ] GitHub project posts include `GithubBookmark`
+- [ ] `pnpm build` passes
+
 ## Types of changes
 
 <!-- What types of changes does your code introduce to AstroPaper? Put an `x` in the boxes that apply -->

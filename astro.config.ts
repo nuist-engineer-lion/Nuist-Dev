@@ -60,13 +60,27 @@ export default defineConfig({
   },
   fonts: [
     {
-      name: "Google Sans Code",
+      name: "Inter Variable",
       cssVariable: "--font-google-sans-code",
-      provider: fontProviders.google(),
-      fallbacks: ["monospace"],
-      weights: [300, 400, 500, 600, 700],
+      provider: fontProviders.local(),
+      options: {
+        variants: [
+          {
+            src: ["@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"],
+            weight: "100 900",
+            style: "normal",
+          },
+          {
+            src: ["@fontsource-variable/inter/files/inter-latin-wght-italic.woff2"],
+            weight: "100 900",
+            style: "italic",
+          },
+        ],
+      },
+      fallbacks: ["system-ui", "sans-serif"],
+      weights: ["100 900"],
       styles: ["normal", "italic"],
-      formats: ["woff", "ttf"],
+      formats: ["woff2"],
     },
   ],
   env: {

@@ -1,0 +1,60 @@
+---
+import { getEntry, render } from "astro:content";
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Breadcrumb from "@/components/Breadcrumb.astro";
+import Main from "@/components/Main.astro";
+import Footer from "@/components/Footer.astro";
+import LinkButton from "@/components/LinkButton.astro";
+import IconArrowRight from "@/assets/icons/IconArrowRight.svg";
+import config from "@/config";
+
+const entry = await getEntry("pages", "contribute");
+
+if (!entry) {
+  throw new Error(
+    "Missing content entry: `contribute.md` or `contribute.mdx` in `src/content/pages/`"
+  );
+}
+
+const { Content } = await render(entry);
+const repoUrl = "https://github.com/nuist-engineer-lion/Nuist-Dev";
+---
+
+<Layout
+  title={`${entry.data.title} | ${config.site.title}`}
+  description={entry.data.description}
+>
+  <Header />
+
+  <Breadcrumb />
+
+  <Main pageTitle={entry.data.title} pageDesc={entry.data.description}>
+    <div class="mb-8 flex flex-wrap gap-3">
+      <LinkButton
+        href={`${repoUrl}/fork`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="border-border bg-accent text-accent-foreground hover:bg-accent/90 inline-flex items-center gap-2 rounded-md border px-4 py-2 font-medium"
+      >
+        Fork 仓库
+        <IconArrowRight class="size-4 rtl:-rotate-180" />
+      </LinkButton>
+      <LinkButton
+        href={`${repoUrl}/pulls`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="border-border inline-flex items-center gap-2 rounded-md border px-4 py-2 font-medium"
+      >
+        查看 PR
+        <IconArrowRight class="size-4 rtl:-rotate-180" />
+      </LinkButton>
+    </div>
+
+    <article class="app-prose max-w-app">
+      <Content />
+    </article>
+  </Main>
+
+  <Footer />
+</Layout>

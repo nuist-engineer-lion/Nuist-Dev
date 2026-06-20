@@ -4,6 +4,7 @@ export default {
   nav: {
     home: "首页",
     posts: "项目",
+    contribute: "投稿",
     tags: "标签",
     about: "关于",
     archives: "归档",
@@ -46,6 +47,9 @@ export default {
 
     postsTitle: "文章",
     postsDesc: "Nuist DEV 的技术文章分享。",
+
+    contributeTitle: "PR 投稿",
+    contributeDesc: "通过 Pull Request 提交文章、修正和项目介绍。",
 
     archivesTitle: "归档",
     archivesDesc: "按时间归档的全部文章。",
