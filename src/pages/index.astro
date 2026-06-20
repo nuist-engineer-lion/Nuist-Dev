@@ -23,7 +23,13 @@ const featuredPosts = sortedPosts.filter(({ data }) => data.featured);
 const recentPosts = sortedPosts.filter(({ data }) => !data.featured);
 const homePath = getRelativeLocaleUrl(locale, "");
 
-const brands = [
+const brands: {
+  name: string;
+  description: string;
+  href: string;
+  image?: string;
+  emoji?: string;
+}[] = [
   {
     name: "修机师 Lion",
     description: "硬件维修、装机升级与电脑故障排查服务",
@@ -70,7 +76,7 @@ const brands = [
                 decoding="async"
               />
             ) : (
-              <span aria-hidden="true">{brand.emoji}</span>
+              <span aria-hidden="true">{brand.emoji ?? ""}</span>
             )}
           </div>
           <div class="min-w-0">
