@@ -2,19 +2,20 @@
 
 记录开发实践、项目经验与技术探索。
 
-基于 [AstroPaper](https://github.com/satnaing/astro-paper) 主题，使用 Astro 6 + TailwindCSS v4 构建。
+基于 [AstroPaper](https://github.com/satnaing/astro-paper) 主题，使用 Astro 6 +
+TailwindCSS v4 构建。
 
 ## 技术栈
 
-| 类别 | 技术 |
-| --- | --- |
-| 框架 | [Astro 6](https://astro.build/) |
-| 样式 | [TailwindCSS v4](https://tailwindcss.com/) |
-| 类型检查 | [TypeScript](https://www.typescriptlang.org/) |
-| 静态搜索 | [Pagefind](https://pagefind.app/) |
+| 类别       | 技术                                                                                   |
+| ---------- | -------------------------------------------------------------------------------------- |
+| 框架       | [Astro 6](https://astro.build/)                                                        |
+| 样式       | [TailwindCSS v4](https://tailwindcss.com/)                                             |
+| 类型检查   | [TypeScript](https://www.typescriptlang.org/)                                          |
+| 静态搜索   | [Pagefind](https://pagefind.app/)                                                      |
 | 动态 OG 图 | [Satori](https://github.com/vercel/satori) + [Sharp](https://sharp.pixelplumbing.com/) |
-| 部署 | [Vercel](https://vercel.com/) |
-| 包管理 | [pnpm](https://pnpm.io/) |
+| 部署       | [Vercel](https://vercel.com/)                                                          |
+| 包管理     | [pnpm](https://pnpm.io/)                                                               |
 
 ## 项目结构
 
@@ -57,14 +58,14 @@ pnpm dev
 
 ## 常用命令
 
-| 命令 | 作用 |
-| --- | --- |
-| `pnpm install` | 安装依赖 |
-| `pnpm dev` | 启动开发服务器 |
-| `pnpm build` | 类型检查 + 构建 + Pagefind 索引 |
-| `pnpm preview` | 本地预览构建产物 |
-| `pnpm format` | Prettier 格式化 |
-| `pnpm lint` | ESLint 检查 |
+| 命令           | 作用                            |
+| -------------- | ------------------------------- |
+| `pnpm install` | 安装依赖                        |
+| `pnpm dev`     | 启动开发服务器                  |
+| `pnpm build`   | 类型检查 + 构建 + Pagefind 索引 |
+| `pnpm preview` | 本地预览构建产物                |
+| `pnpm format`  | Prettier 格式化                 |
+| `pnpm lint`    | ESLint 检查                     |
 
 ## 文章编写
 
@@ -85,6 +86,7 @@ src/content/posts/26/06/my-post.mdx
 仓库连接 Vercel 后，每次 `main` 分支合并 PR 都会自动触发部署。
 
 `main` 分支已启用保护规则：
+
 - 需要 Pull Request + 1 人审批
 - CI 检查必须通过
 - 禁止 force push 和删除

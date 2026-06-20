@@ -23,8 +23,7 @@ const {
   license,
 } = Astro.props;
 
-const fmt = (n: number) =>
-  n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`;
+const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`);
 ---
 
 <a
@@ -56,24 +55,20 @@ const fmt = (n: number) =>
   {description && <span class="gh-bookmark-desc">{description}</span>}
 
   <span class="gh-bookmark-meta">
-    {language && (
-      <span class="gh-bookmark-meta-item">
-        <span
-          class="gh-bookmark-lang-dot"
-          style={`background:${languageColor}`}
-        ></span>
-        {language}
-      </span>
-    )}
-    {stars > 0 && (
-      <span class="gh-bookmark-meta-item">★ {fmt(stars)}</span>
-    )}
-    {forks > 0 && (
-      <span class="gh-bookmark-meta-item">⑂ {fmt(forks)}</span>
-    )}
-    {license && (
-      <span class="gh-bookmark-meta-item">{license}</span>
-    )}
+    {
+      language && (
+        <span class="gh-bookmark-meta-item">
+          <span
+            class="gh-bookmark-lang-dot"
+            style={`background:${languageColor}`}
+          />
+          {language}
+        </span>
+      )
+    }
+    {stars > 0 && <span class="gh-bookmark-meta-item">★ {fmt(stars)}</span>}
+    {forks > 0 && <span class="gh-bookmark-meta-item">⑂ {fmt(forks)}</span>}
+    {license && <span class="gh-bookmark-meta-item">{license}</span>}
   </span>
 </a>
 

@@ -53,42 +53,45 @@ const brands: {
     data-home-path={homePath}
     class="app-layout"
   >
-
     <section
       id="brands"
       class="grid grid-cols-1 gap-4 pt-12 pb-6 sm:grid-cols-2"
     >
-      {brands.map(brand => (
-        <a
-          href={brand.href}
-          {...brand.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {}}
-          class="group border-border bg-background flex items-center gap-4 rounded-lg border p-5 transition-colors hover:border-accent"
-        >
-          <div class="bg-muted text-accent flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full text-3xl">
-            {"image" in brand && brand.image ? (
-              <img
-                src={brand.image}
-                alt=""
-                width="450"
-                height="450"
-                class="h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            ) : (
-              <span aria-hidden="true">{brand.emoji ?? ""}</span>
-            )}
-          </div>
-          <div class="min-w-0">
-            <h3 class="group-hover:text-accent text-lg font-semibold transition-colors">
-              {brand.name}
-            </h3>
-            <p class="text-muted-foreground mt-1 text-sm">
-              {brand.description}
-            </p>
-          </div>
-        </a>
-      ))}
+      {
+        brands.map(brand => (
+          <a
+            href={brand.href}
+            {...(brand.href.startsWith("http")
+              ? { target: "_blank", rel: "noopener noreferrer" }
+              : {})}
+            class="group border-border bg-background hover:border-accent flex items-center gap-4 rounded-lg border p-5 transition-colors"
+          >
+            <div class="bg-muted text-accent flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full text-3xl">
+              {"image" in brand && brand.image ? (
+                <img
+                  src={brand.image}
+                  alt=""
+                  width="450"
+                  height="450"
+                  class="h-full w-full object-cover"
+                  loading="lazy"
+                  decoding="async"
+                />
+              ) : (
+                <span aria-hidden="true">{brand.emoji ?? ""}</span>
+              )}
+            </div>
+            <div class="min-w-0">
+              <h3 class="group-hover:text-accent text-lg font-semibold transition-colors">
+                {brand.name}
+              </h3>
+              <p class="text-muted-foreground mt-1 text-sm">
+                {brand.description}
+              </p>
+            </div>
+          </a>
+        ))
+      }
     </section>
 
     {

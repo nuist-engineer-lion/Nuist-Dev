@@ -27,7 +27,9 @@ const { title, description, author, ...props } = data;
       {title}
     </Heading>
   </a>
-  <div class="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1">
+  <div
+    class="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1"
+  >
     <Datetime {...props} />
     <span aria-hidden="true" class="flex items-center gap-1">
       <IconUser class="inline-block size-5 min-w-5.5 scale-90" />
