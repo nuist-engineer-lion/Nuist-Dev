@@ -114,6 +114,21 @@ async function handleRequest(
     return finishGitHubOAuth(request, env, basePath);
   }
 
+  if (request.method === "GET" && pathname === "/api/session") {
+    const session = await readSession(request, env);
+    return json({
+      ok: true,
+      authenticated: Boolean(session),
+      user: session
+        ? {
+            login: session.login,
+            avatarUrl: session.avatarUrl ?? null,
+            name: session.name ?? null,
+          }
+        : null,
+    });
+  }
+
   if (request.method === "POST" && pathname === "/api/submit") {
     const session = await requireSession(request, env);
     const result = await handleSubmit(request, env, session);
@@ -1554,9 +1569,11 @@ function json(body: unknown, status = 200): Response {
 }
 
 function wantsJson(request: Request): boolean {
+  const pathname = new URL(request.url).pathname;
   return (
     request.headers.get("Accept")?.includes("application/json") ||
-    new URL(request.url).pathname.startsWith("/api/")
+    pathname.startsWith("/api/") ||
+    pathname.includes("/api/")
   );
 }
 

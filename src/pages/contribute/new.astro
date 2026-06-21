@@ -1,0 +1,549 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import Header from "@/components/Header.astro";
+import Main from "@/components/Main.astro";
+import Footer from "@/components/Footer.astro";
+import config from "@/config";
+
+const pageTitle = "自动投稿";
+const pageDesc =
+  "使用 GitHub 登录后提交 MDX 草稿和图片附件，系统会自动创建 Pull Request。";
+---
+
+<Layout title={`${pageTitle} | ${config.site.title}`} description={pageDesc}>
+  <Header />
+
+  <Main pageTitle={pageTitle} pageDesc={pageDesc}>
+    <section
+      class="border-border bg-background mb-6 rounded-lg border p-4"
+      aria-live="polite"
+    >
+      <div
+        class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div class="min-w-0">
+          <p class="text-muted-foreground text-sm">GitHub 身份</p>
+          <div id="session-status" class="font-medium">正在检查登录状态...</div>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <a
+            id="login-link"
+            href="/contribute/new/auth/github"
+            class="bg-accent text-accent-foreground hover:bg-accent/90 rounded-md px-4 py-2 font-medium"
+          >
+            使用 GitHub 登录
+          </a>
+          <form
+            id="logout-form"
+            action="/contribute/new/logout"
+            method="post"
+            hidden
+          >
+            <button
+              type="submit"
+              class="border-border hover:text-accent rounded-md border px-4 py-2 font-medium"
+            >
+              退出登录
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <form
+      id="contribute-form"
+      class="grid gap-6"
+      action="/contribute/new/api/submit"
+      method="post"
+      enctype="multipart/form-data"
+    >
+      <section class="grid gap-4 sm:grid-cols-2">
+        <label class="grid gap-2 sm:col-span-2">
+          <span class="text-sm font-medium">标题</span>
+          <input
+            name="title"
+            required
+            maxlength="120"
+            autocomplete="off"
+            placeholder="例如：Cloudflare Worker 投稿入口"
+            class="border-border bg-background focus:border-accent rounded-md border px-3 py-2"
+          />
+        </label>
+
+        <label class="grid gap-2">
+          <span class="text-sm font-medium">Slug</span>
+          <input
+            name="slug"
+            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+            autocomplete="off"
+            placeholder="my-post-title"
+            class="border-border bg-background focus:border-accent rounded-md border px-3 py-2"
+          />
+        </label>
+
+        <label class="grid gap-2">
+          <span class="text-sm font-medium">作者</span>
+          <input
+            id="author"
+            name="author"
+            required
+            autocomplete="off"
+            placeholder="GitHub 用户名"
+            class="border-border bg-background focus:border-accent rounded-md border px-3 py-2"
+          />
+        </label>
+
+        <label class="grid gap-2 sm:col-span-2">
+          <span class="text-sm font-medium">标签</span>
+          <input
+            name="tags"
+            required
+            placeholder="Astro, Cloudflare, 投稿"
+            class="border-border bg-background focus:border-accent rounded-md border px-3 py-2"
+          />
+          <span class="text-muted-foreground text-sm"
+            >使用逗号或换行分隔，最终 2 到 5 个。</span
+          >
+        </label>
+
+        <label class="grid gap-2 sm:col-span-2">
+          <span class="text-sm font-medium">描述</span>
+          <textarea
+            name="description"
+            required
+            rows="3"
+            maxlength="220"
+            placeholder="一句话说明这篇文章写什么。"
+            class="border-border bg-background focus:border-accent rounded-md border px-3 py-2"
+          ></textarea>
+        </label>
+      </section>
+
+      <section class="grid gap-3">
+        <div class="border-border flex border-b">
+          <button
+            id="write-tab"
+            class="border-accent text-accent border-b-2 px-4 py-2 font-medium"
+            type="button"
+            aria-selected="true"
+          >
+            Write
+          </button>
+          <button
+            id="preview-tab"
+            class="text-muted-foreground hover:text-accent px-4 py-2 font-medium"
+            type="button"
+            aria-selected="false"
+          >
+            Preview
+          </button>
+        </div>
+
+        <label id="write-panel" class="grid gap-2">
+          <span class="sr-only">正文 MDX</span>
+          <textarea
+            id="body"
+            name="body"
+            required
+            rows="20"
+            placeholder={"正文里用 {{file:diagram.png}} 引用上传图片。"}
+            class="border-border bg-background focus:border-accent min-h-96 rounded-md border px-3 py-2 font-mono text-sm"
+          ></textarea>
+        </label>
+
+        <div
+          id="preview-panel"
+          class="border-border github-preview min-h-96 rounded-md border p-4"
+          hidden
+        >
+          <p class="text-muted-foreground">
+            切换到 Preview 后会显示 Markdown 预览。
+          </p>
+        </div>
+      </section>
+
+      <section class="grid gap-4 sm:grid-cols-2">
+        <label class="grid gap-2">
+          <span class="text-sm font-medium">图片附件</span>
+          <input
+            id="attachments"
+            name="attachments"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml"
+            multiple
+            class="border-border bg-background rounded-md border px-3 py-2"
+          />
+          <span id="attachment-summary" class="text-muted-foreground text-sm"
+            >尚未选择附件</span
+          >
+        </label>
+
+        <label class="grid gap-2">
+          <span class="text-sm font-medium">封面图</span>
+          <select
+            id="coverAttachment"
+            name="coverAttachment"
+            class="border-border bg-background focus:border-accent rounded-md border px-3 py-2"
+          >
+            <option value="">不设置</option>
+          </select>
+          <span class="text-muted-foreground text-sm"
+            >封面图必须来自本次上传的图片。</span
+          >
+        </label>
+      </section>
+
+      <section class="border-border bg-muted/25 rounded-lg border p-4">
+        <h2 class="mb-2 text-lg font-semibold">提交约定</h2>
+        <ul class="text-muted-foreground list-disc space-y-1 ps-5 text-sm">
+          <li>发布时间由服务端按 Asia/Shanghai 当前日期生成，不接受手填。</li>
+          <li>正文不要包含 frontmatter，只填写 MDX 正文。</li>
+          <li>附件至少要在正文中用占位符引用，或被选作封面图。</li>
+          <li>新文章默认是 draft，合并前由维护者审核。</li>
+        </ul>
+      </section>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <button
+          type="submit"
+          class="bg-accent text-accent-foreground hover:bg-accent/90 w-fit rounded-md px-4 py-2 font-medium"
+        >
+          提交 Pull Request
+        </button>
+        <output id="result" class="text-sm" aria-live="polite"></output>
+      </div>
+    </form>
+  </Main>
+
+  <Footer />
+</Layout>
+
+<script
+  is:inline
+  src="https://cdn.jsdelivr.net/npm/dompurify@3.2.7/dist/purify.min.js"
+></script>
+<script
+  is:inline
+  src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"></script>
+
+<script>
+  type SessionResponse = {
+    ok: boolean;
+    authenticated: boolean;
+    user?: {
+      login: string;
+      avatarUrl?: string | null;
+      name?: string | null;
+    } | null;
+  };
+
+  type SubmitResponse = {
+    ok: boolean;
+    error?: string;
+    pullRequestUrl?: string;
+  };
+
+  declare global {
+    interface Window {
+      DOMPurify?: {
+        sanitize: (dirty: string, options?: Record<string, unknown>) => string;
+      };
+      marked?: {
+        parse: (markdown: string, options?: Record<string, unknown>) => string;
+        setOptions: (options: Record<string, unknown>) => void;
+      };
+    }
+  }
+
+  const form = document.querySelector(
+    "#contribute-form"
+  ) as HTMLFormElement | null;
+  const result = document.querySelector("#result") as HTMLOutputElement | null;
+  const author = document.querySelector("#author") as HTMLInputElement | null;
+  const sessionStatus = document.querySelector(
+    "#session-status"
+  ) as HTMLElement | null;
+  const loginLink = document.querySelector(
+    "#login-link"
+  ) as HTMLAnchorElement | null;
+  const logoutForm = document.querySelector(
+    "#logout-form"
+  ) as HTMLFormElement | null;
+  const attachments = document.querySelector(
+    "#attachments"
+  ) as HTMLInputElement | null;
+  const cover = document.querySelector(
+    "#coverAttachment"
+  ) as HTMLSelectElement | null;
+  const attachmentSummary = document.querySelector(
+    "#attachment-summary"
+  ) as HTMLElement | null;
+  const writeTab = document.querySelector(
+    "#write-tab"
+  ) as HTMLButtonElement | null;
+  const previewTab = document.querySelector(
+    "#preview-tab"
+  ) as HTMLButtonElement | null;
+  const writePanel = document.querySelector(
+    "#write-panel"
+  ) as HTMLElement | null;
+  const previewPanel = document.querySelector(
+    "#preview-panel"
+  ) as HTMLElement | null;
+  const body = document.querySelector("#body") as HTMLTextAreaElement | null;
+
+  const attachmentUrls = new Map<string, string>();
+
+  window.marked?.setOptions({
+    breaks: false,
+    gfm: true,
+    headerIds: false,
+    mangle: false,
+  });
+
+  async function loadSession() {
+    if (!sessionStatus || !loginLink || !logoutForm) return;
+    try {
+      const response = await fetch("/contribute/new/api/session", {
+        headers: { Accept: "application/json" },
+      });
+      const data = (await response.json()) as SessionResponse;
+      if (data.authenticated && data.user) {
+        sessionStatus.textContent = `已登录 @${data.user.login}`;
+        loginLink.hidden = true;
+        logoutForm.hidden = false;
+        if (author && !author.value) author.value = data.user.login;
+        return;
+      }
+      sessionStatus.textContent = "尚未登录";
+      loginLink.hidden = false;
+      logoutForm.hidden = true;
+    } catch {
+      sessionStatus.textContent = "无法检查登录状态";
+      loginLink.hidden = false;
+      logoutForm.hidden = true;
+    }
+  }
+
+  function syncAttachments() {
+    if (!attachments || !cover || !attachmentSummary) return;
+
+    for (const url of attachmentUrls.values()) URL.revokeObjectURL(url);
+    attachmentUrls.clear();
+
+    const files = Array.from(attachments.files || []);
+    cover.length = 0;
+    cover.options.add(new Option("不设置", ""));
+    for (const file of files) {
+      const url = URL.createObjectURL(file);
+      attachmentUrls.set(file.name, url);
+      cover.options.add(new Option(file.name, file.name));
+    }
+
+    attachmentSummary.textContent = files.length
+      ? files.map(file => file.name).join(" · ")
+      : "尚未选择附件";
+    renderPreview();
+  }
+
+  function sanitizeMdxForPreview(value: string) {
+    return value
+      .replace(/^\s*import\s+.+?;?\s*$/gm, match => `\`${match.trim()}\``)
+      .replace(/<([A-Z][A-Za-z0-9_.]*)(\s[^>]*)?>/g, "`<$1>`")
+      .replace(/<\/([A-Z][A-Za-z0-9_.]*)>/g, "`</$1>`")
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+      .replace(/\{([^{}\n]+)\}/g, "`{$1}`");
+  }
+
+  function replaceAttachmentPlaceholders(value: string) {
+    return value.replace(/\{\{file:([^}]+)\}\}/g, (_match, rawName) => {
+      const name = String(rawName).trim();
+      const url = attachmentUrls.get(name);
+      if (!url) {
+        return `\n\n> 未找到附件：${name}\n\n`;
+      }
+      return url;
+    });
+  }
+
+  function renderPreview() {
+    if (!previewPanel || !body) return;
+    const source = replaceAttachmentPlaceholders(
+      sanitizeMdxForPreview(body.value.trim())
+    );
+
+    if (!source) {
+      previewPanel.innerHTML =
+        '<p class="text-muted-foreground">正文为空，暂无预览。</p>';
+      return;
+    }
+
+    if (!window.marked || !window.DOMPurify) {
+      previewPanel.innerHTML =
+        '<p class="text-muted-foreground">预览组件还在加载，请稍后再试。</p>';
+      return;
+    }
+
+    const html = window.marked.parse(source);
+    previewPanel.innerHTML = window.DOMPurify.sanitize(html, {
+      ADD_ATTR: ["target"],
+    });
+
+    for (const link of previewPanel.querySelectorAll("a")) {
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer");
+    }
+  }
+
+  function setTab(mode: "write" | "preview") {
+    if (!writeTab || !previewTab || !writePanel || !previewPanel) return;
+    const preview = mode === "preview";
+    writePanel.hidden = preview;
+    previewPanel.hidden = !preview;
+    writeTab.setAttribute("aria-selected", String(!preview));
+    previewTab.setAttribute("aria-selected", String(preview));
+    writeTab.className = preview
+      ? "text-muted-foreground hover:text-accent px-4 py-2 font-medium"
+      : "border-accent text-accent border-b-2 px-4 py-2 font-medium";
+    previewTab.className = preview
+      ? "border-accent text-accent border-b-2 px-4 py-2 font-medium"
+      : "text-muted-foreground hover:text-accent px-4 py-2 font-medium";
+    if (preview) renderPreview();
+  }
+
+  attachments?.addEventListener("change", syncAttachments);
+  body?.addEventListener("input", () => {
+    if (previewPanel && !previewPanel.hidden) renderPreview();
+  });
+  writeTab?.addEventListener("click", () => setTab("write"));
+  previewTab?.addEventListener("click", () => setTab("preview"));
+
+  form?.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!form || !result) return;
+
+    result.className = "text-sm text-muted-foreground";
+    result.textContent = "正在提交...";
+
+    try {
+      const response = await fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+      });
+      const data = (await response.json()) as SubmitResponse;
+      if (!response.ok || !data.ok) {
+        result.className = "text-sm text-red-600";
+        result.textContent = data.error || "提交失败。";
+        return;
+      }
+      result.className = "text-sm text-accent";
+      const pullRequestUrl = data.pullRequestUrl || "";
+      result.innerHTML = `已创建 PR：<a class="underline decoration-dashed underline-offset-4" href="${pullRequestUrl}" target="_blank" rel="noopener noreferrer">${pullRequestUrl}</a>`;
+      form.reset();
+      syncAttachments();
+      setTab("write");
+      await loadSession();
+    } catch {
+      result.className = "text-sm text-red-600";
+      result.textContent = "提交失败，请稍后重试。";
+    }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    for (const url of attachmentUrls.values()) URL.revokeObjectURL(url);
+  });
+
+  loadSession();
+</script>
+
+<style>
+  .github-preview {
+    overflow-wrap: anywhere;
+  }
+
+  .github-preview :where(h1, h2, h3, h4, h5, h6) {
+    margin-block: 1rem 0.5rem;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .github-preview :where(h1, h2) {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+
+  .github-preview h1 {
+    font-size: 2rem;
+  }
+
+  .github-preview h2 {
+    font-size: 1.5rem;
+  }
+
+  .github-preview h3 {
+    font-size: 1.25rem;
+  }
+
+  .github-preview :where(p, ul, ol, blockquote, pre, table) {
+    margin-block: 0 1rem;
+  }
+
+  .github-preview :where(ul, ol) {
+    padding-left: 2rem;
+  }
+
+  .github-preview ul {
+    list-style: disc;
+  }
+
+  .github-preview ol {
+    list-style: decimal;
+  }
+
+  .github-preview blockquote {
+    border-left: 0.25rem solid var(--border);
+    color: var(--muted-foreground);
+    padding-left: 1rem;
+  }
+
+  .github-preview :where(code, pre) {
+    background: color-mix(in srgb, var(--muted) 70%, transparent);
+    border-radius: 0.375rem;
+  }
+
+  .github-preview code {
+    padding: 0.125rem 0.375rem;
+  }
+
+  .github-preview pre {
+    overflow-x: auto;
+    padding: 1rem;
+  }
+
+  .github-preview pre code {
+    background: transparent;
+    padding: 0;
+  }
+
+  .github-preview a {
+    color: var(--accent);
+    text-decoration-line: underline;
+    text-decoration-style: dashed;
+    text-underline-offset: 4px;
+  }
+
+  .github-preview img {
+    border: 1px solid var(--border);
+    max-width: 100%;
+  }
+
+  .github-preview table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  .github-preview :where(th, td) {
+    border: 1px solid var(--border);
+    padding: 0.375rem 0.75rem;
+  }
+</style>

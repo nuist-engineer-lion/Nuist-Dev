@@ -3,7 +3,11 @@
   "name": "nuist-dev-upload",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-21",
-  "routes": ["hub.nuist.dev/contribute/new", "hub.nuist.dev/contribute/new/*"],
+  "routes": [
+    "hub.nuist.dev/contribute/new/auth/*",
+    "hub.nuist.dev/contribute/new/api/*",
+    "hub.nuist.dev/contribute/new/logout"
+  ],
   "vars": {
     "GITHUB_OWNER": "nuist-engineer-lion",
     "GITHUB_REPO": "Nuist-Dev",
