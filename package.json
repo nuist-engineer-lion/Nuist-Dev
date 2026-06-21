@@ -11,6 +11,9 @@
     "preview": "astro preview",
     "sync": "astro sync",
     "astro": "astro",
+    "worker:dev": "pnpm --dir workers/mdx-pr-worker dev",
+    "worker:deploy": "pnpm --dir workers/mdx-pr-worker deploy",
+    "worker:typecheck": "pnpm --dir workers/mdx-pr-worker typecheck",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "lint": "eslint ."

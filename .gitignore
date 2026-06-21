@@ -36,5 +36,10 @@ compose.override.yaml
 # vercel cli local config
 .vercel/
 
+# cloudflare worker local state and secrets
+.wrangler/
+.dev.vars
+.dev.vars.*
+
 # playwright mcp snapshots
 .playwright-mcp/

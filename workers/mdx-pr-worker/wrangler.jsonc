@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nuist-dev-mdx-pr-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-21",
+  "vars": {
+    "GITHUB_OWNER": "nuist-engineer-lion",
+    "GITHUB_REPO": "Nuist-Dev",
+    "BASE_BRANCH": "main",
+    "TIMEZONE": "Asia/Shanghai"
+  }
+}
