@@ -350,30 +350,6 @@ async function handleSubmit(
 }
 
 function renderHomePage(session: Session | null, basePath: string): string {
-  const userBlock = session
-    ? `<div class="user">
-        ${
-          session.avatarUrl
-            ? `<img src="${escapeAttr(session.avatarUrl)}" alt="" />`
-            : ""
-        }
-        <span>@${escapeHtml(session.login)}</span>
-        <form method="post" action="${escapeAttr(
-          withBasePath(basePath, "/logout")
-        )}"><button type="submit">退出</button></form>
-      </div>`
-    : "";
-
-  const content = session
-    ? renderSubmitForm(session, basePath)
-    : `<section class="panel center">
-        <h1>Nuist DEV 投稿</h1>
-        <p>使用 GitHub 登录后提交 MDX 草稿，系统会自动创建 Pull Request。</p>
-        <a class="primary" href="${escapeAttr(
-          withBasePath(basePath, "/auth/github")
-        )}">使用 GitHub 登录</a>
-      </section>`;
-
   return `<!doctype html>
 <html lang="zh-CN">
   <head>
@@ -383,70 +359,179 @@ function renderHomePage(session: Session | null, basePath: string): string {
     <style>${CSS}</style>
   </head>
   <body>
-    <main>
-      ${userBlock}
-      ${content}
+    <main class="app-shell">
+      <header class="page-head">
+        <div class="page-head__copy">
+          <p class="eyebrow">投稿工作台</p>
+          <h1>Nuist DEV 投稿入口</h1>
+          <p class="lede">
+            提交 MDX 草稿、图片附件和封面图，Worker 会自动创建 Pull Request。发布时间由服务端锁定为
+            Asia/Shanghai 当前日期。
+          </p>
+          <div class="meta-row" aria-label="投稿特性">
+            <span class="meta-chip">服务端锁定发布日期</span>
+            <span class="meta-chip">仅支持图片附件</span>
+            <span class="meta-chip">自动创建 PR</span>
+          </div>
+        </div>
+        ${
+          session
+            ? `<div class="session">
+                ${
+                  session.avatarUrl
+                    ? `<img class="session__avatar" src="${escapeAttr(
+                        session.avatarUrl
+                      )}" alt="" />`
+                    : ""
+                }
+                <div class="session__copy">
+                  <span class="session__label">当前登录</span>
+                  <strong>@${escapeHtml(session.login)}</strong>
+                </div>
+                <form method="post" action="${escapeAttr(
+                  withBasePath(basePath, "/logout")
+                )}">
+                  <button class="button button--ghost" type="submit">退出</button>
+                </form>
+              </div>`
+            : `<a class="button" href="${escapeAttr(
+                withBasePath(basePath, "/auth/github")
+              )}">使用 GitHub 登录</a>`
+        }
+      </header>
+      ${
+        session
+          ? renderSubmitForm(session, basePath)
+          : renderIntroPanel(basePath)
+      }
     </main>
   </body>
 </html>`;
 }
 
+function renderIntroPanel(basePath: string): string {
+  return `<section class="panel intro">
+    <div class="intro__copy">
+      <p class="section-kicker">开始前</p>
+      <h2>登录后就能提交</h2>
+      <p class="section-copy">
+        表单会自动生成 frontmatter，发布日期由服务器锁定为 Asia/Shanghai 当前日期。附件只接受图片，正文里用
+        <code>{{file:name.png}}</code> 引用。
+      </p>
+    </div>
+    <div class="intro__actions">
+      <a class="button" href="${escapeAttr(
+        withBasePath(basePath, "/auth/github")
+      )}">使用 GitHub 登录</a>
+      <p class="intro__fineprint">登录只用于确认投稿身份，实际写入仓库使用 Bot token。</p>
+    </div>
+  </section>`;
+}
+
 function renderSubmitForm(session: Session, basePath: string): string {
   const submitAction = withBasePath(basePath, "/api/submit");
-  return `<section class="panel">
-    <h1>提交 MDX 草稿</h1>
-    <form id="submit-form" method="post" action="${escapeAttr(
+  return `<section class="tool-grid">
+    <form id="submit-form" class="panel form" method="post" action="${escapeAttr(
       submitAction
     )}" enctype="multipart/form-data">
-      <label>
-        <span>标题</span>
-        <input name="title" required maxlength="120" autocomplete="off" />
-      </label>
-      <label>
-        <span>Slug</span>
-        <input name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="my-post-title" autocomplete="off" />
-      </label>
-      <label>
-        <span>作者</span>
-        <input name="author" required value="${escapeAttr(session.login)}" autocomplete="off" />
-      </label>
-      <label>
-        <span>标签</span>
-        <textarea name="tags" required rows="3" placeholder="Astro, Cloudflare, 投稿"></textarea>
-      </label>
-      <label>
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">文章信息</p>
+          <h2>填写投稿内容</h2>
+        </div>
+        <p class="section-copy">保存后会自动创建分支、提交文章和附件，并打开 PR。</p>
+      </div>
+      <div class="field-grid">
+        <label class="field field--wide">
+          <span>标题</span>
+          <input name="title" required maxlength="120" autocomplete="off" placeholder="例如：Cloudflare Worker 投稿入口" />
+        </label>
+        <label class="field">
+          <span>Slug</span>
+          <input name="slug" pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="my-post-title" autocomplete="off" />
+        </label>
+      </div>
+      <div class="field-grid">
+        <label class="field">
+          <span>作者</span>
+          <input name="author" required value="${escapeAttr(session.login)}" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>标签</span>
+          <input name="tags" required placeholder="Astro, Cloudflare, 投稿" />
+        </label>
+      </div>
+      <label class="field">
         <span>描述</span>
-        <textarea name="description" required rows="3" maxlength="220"></textarea>
+        <textarea name="description" required rows="3" maxlength="220" placeholder="一句话说明这篇文章写什么。"></textarea>
       </label>
-      <label>
+      <label class="field">
         <span>正文 MDX</span>
         <textarea class="body" name="body" required rows="18" placeholder="正文里用 {{file:diagram.png}} 引用上传图片。"></textarea>
       </label>
-      <label>
-        <span>图片附件</span>
-        <input id="attachments" name="attachments" type="file" accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml" multiple />
-      </label>
-      <label>
-        <span>封面图</span>
-        <select id="coverAttachment" name="coverAttachment">
-          <option value="">不设置</option>
-        </select>
-      </label>
-      <button class="primary" type="submit">提交 Pull Request</button>
+      <div class="field-grid">
+        <label class="field">
+          <span>图片附件</span>
+          <input
+            id="attachments"
+            name="attachments"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml"
+            multiple
+          />
+        </label>
+        <label class="field">
+          <span>封面图</span>
+          <select id="coverAttachment" name="coverAttachment">
+            <option value="">不设置</option>
+          </select>
+        </label>
+      </div>
+      <div class="actions">
+        <button class="button" type="submit">提交 Pull Request</button>
+        <output id="result" aria-live="polite"></output>
+      </div>
     </form>
-    <output id="result" aria-live="polite"></output>
+    <aside class="panel panel--soft sidebar">
+      <div class="section-head section-head--stack">
+        <div>
+          <p class="section-kicker">提交约定</p>
+          <h2>和主站保持一致</h2>
+        </div>
+      </div>
+      <ul class="notes">
+        <li>发布日期由服务器生成，不接受手填。</li>
+        <li>附件只允许图片，正文用 <code>{{file:name.png}}</code> 引用。</li>
+        <li>附件至少要被正文引用一次，或被选作封面图。</li>
+        <li>新文章默认进入 <code>draft: true</code>。</li>
+      </ul>
+      <div class="sidebar__meta">
+        <div class="hint">
+          <span class="hint__label">附件状态</span>
+          <output id="attachment-summary">尚未选择附件</output>
+        </div>
+        <div class="hint">
+          <span class="hint__label">当前登录</span>
+          <output>@${escapeHtml(session.login)}</output>
+        </div>
+      </div>
+    </aside>
   </section>
   <script>
     const form = document.querySelector("#submit-form");
     const attachments = document.querySelector("#attachments");
     const cover = document.querySelector("#coverAttachment");
     const result = document.querySelector("#result");
+    const attachmentSummary = document.querySelector("#attachment-summary");
     const submitUrl = ${JSON.stringify(submitAction)};
 
     attachments.addEventListener("change", () => {
       const files = Array.from(attachments.files || []);
       cover.replaceChildren(new Option("不设置", ""));
       for (const file of files) cover.append(new Option(file.name, file.name));
+      attachmentSummary.textContent = files.length
+        ? files.map(file => file.name).join(" · ")
+        : "尚未选择附件";
     });
 
     form.addEventListener("submit", async event => {
@@ -467,6 +552,7 @@ function renderSubmitForm(session: Session, basePath: string): string {
       result.innerHTML = '已创建 PR：<a href="' + data.pullRequestUrl + '" rel="noreferrer" target="_blank">' + data.pullRequestUrl + "</a>";
       form.reset();
       cover.replaceChildren(new Option("不设置", ""));
+      attachmentSummary.textContent = "尚未选择附件";
     });
   </script>`;
 }
@@ -481,11 +567,12 @@ function renderErrorPage(message: string, basePath: string): string {
     <style>${CSS}</style>
   </head>
   <body>
-    <main>
+    <main class="app-shell app-shell--center">
       <section class="panel center">
+        <p class="eyebrow">Nuist DEV</p>
         <h1>请求失败</h1>
-        <p>${escapeHtml(message)}</p>
-        <a class="primary" href="${escapeAttr(withBasePath(basePath, "/"))}">返回首页</a>
+        <p class="section-copy">${escapeHtml(message)}</p>
+        <a class="button" href="${escapeAttr(withBasePath(basePath, "/"))}">返回首页</a>
       </section>
     </main>
   </body>
@@ -494,78 +581,227 @@ function renderErrorPage(message: string, basePath: string): string {
 
 const CSS = `
 :root {
-  color-scheme: light dark;
-  --background: #f6f7f8;
-  --foreground: #182026;
-  --muted: #59636e;
+  --background: #fdfdfd;
+  --foreground: #282728;
+  --muted: #f4f4f4;
+  --muted-foreground: #6b7280;
   --panel: #ffffff;
-  --border: #d7dde3;
-  --accent: #0f766e;
+  --border: #ece9e9;
+  --accent: #006cac;
   --accent-foreground: #ffffff;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+  color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #101417;
-    --foreground: #eef2f5;
-    --muted: #a4adb7;
-    --panel: #171d21;
-    --border: #303a42;
-    --accent: #2dd4bf;
-    --accent-foreground: #05201d;
+    --background: #212737;
+    --foreground: #eaedf3;
+    --muted: #343f60;
+    --muted-foreground: #afb9ca;
+    --panel: #212737;
+    --border: #ab4b08;
+    --accent: #ff6b01;
+    --accent-foreground: #ffffff;
   }
 }
 * {
   box-sizing: border-box;
 }
+html {
+  background: var(--background);
+}
 body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
-main {
-  width: min(960px, calc(100vw - 32px));
-  margin: 32px auto;
-}
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 24px;
-}
-.center {
+.app-shell {
+  width: min(72rem, calc(100vw - 32px));
+  margin: 24px auto 40px;
   display: grid;
-  gap: 16px;
-  justify-items: start;
+  gap: 20px;
 }
-.user {
+.app-shell--center {
+  min-height: calc(100vh - 32px);
+  align-items: center;
+}
+.page-head {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 18px;
+}
+.page-head__copy {
+  display: grid;
+  gap: 8px;
+  max-width: 44rem;
+}
+.eyebrow,
+.section-kicker,
+.hint__label {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+h1,
+h2,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: 30px;
+  line-height: 1.15;
+}
+h2 {
+  font-size: 20px;
+  line-height: 1.2;
+}
+.lede,
+.section-copy,
+.notes,
+.intro__fineprint {
+  color: var(--muted-foreground);
+}
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 86%, var(--muted) 14%);
+  color: var(--muted-foreground);
+  font-size: 13px;
+  padding: 4px 10px;
+}
+.session {
+  display: inline-flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
-  color: var(--muted);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
 }
-.user img {
+.session__avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
 }
-h1 {
-  margin: 0 0 20px;
-  font-size: 28px;
+.session__copy {
+  display: grid;
+  gap: 2px;
 }
-p {
-  margin: 0;
-  color: var(--muted);
+.session__label {
+  color: var(--muted-foreground);
+  font-size: 12px;
 }
-form {
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 14px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease,
+    color 0.15s ease, transform 0.15s ease;
+}
+.button:hover {
+  transform: translateY(-1px);
+}
+.button--ghost {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--foreground);
+}
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.panel--soft {
+  background: color-mix(in srgb, var(--panel) 92%, var(--muted) 8%);
+}
+.intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.intro__copy {
+  display: grid;
+  gap: 6px;
+  max-width: 44rem;
+}
+.intro__actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  max-width: 18rem;
+  text-align: right;
+}
+.intro__fineprint {
+  font-size: 13px;
+}
+.tool-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 0.82fr);
+  gap: 18px;
+}
+.form {
   display: grid;
   gap: 16px;
 }
-label {
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.section-head--stack {
+  align-items: flex-start;
+}
+.section-head > div {
+  display: grid;
+  gap: 4px;
+}
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.field {
   display: grid;
   gap: 8px;
-  color: var(--muted);
+}
+.field--wide {
+  grid-column: 1 / -1;
+}
+.field span {
+  color: var(--muted-foreground);
   font-size: 14px;
 }
 input,
@@ -574,24 +810,79 @@ select {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: transparent;
+  background: color-mix(in srgb, var(--panel) 94%, var(--muted) 6%);
   color: var(--foreground);
   font: inherit;
   padding: 10px 12px;
+  min-height: 42px;
+  transition: border-color 0.15s ease, outline-color 0.15s ease,
+    background-color 0.15s ease;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted-foreground);
+}
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  outline-offset: 1px;
 }
 textarea {
   resize: vertical;
 }
 .body {
+  min-height: 18rem;
   font-family: "Google Sans Code", ui-monospace, SFMono-Regular, Consolas, monospace;
 }
-button,
-.primary {
-  display: inline-flex;
+.actions {
+  display: grid;
+  gap: 10px;
+  align-items: start;
+}
+.actions .button {
   width: fit-content;
+}
+.notes {
+  margin: 14px 0 18px;
+  padding-inline-start: 18px;
+  display: grid;
+  gap: 10px;
+}
+.notes li {
+  padding-left: 2px;
+}
+.notes code,
+code {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  background: color-mix(in srgb, var(--panel) 90%, var(--muted) 10%);
+}
+.sidebar {
+  display: grid;
+  gap: 8px;
+}
+.sidebar__meta {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.hint {
+  display: grid;
+  gap: 6px;
+}
+button {
+  width: fit-content;
+}
+button,
+.button {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 0;
+  border: 1px solid var(--accent);
   border-radius: 6px;
   background: var(--accent);
   color: var(--accent-foreground);
@@ -601,13 +892,15 @@ button,
   padding: 10px 14px;
   text-decoration: none;
 }
-.user button {
-  padding: 6px 10px;
+.button--ghost,
+.actions button {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--foreground);
 }
 output {
   display: block;
   min-height: 24px;
-  margin-top: 16px;
   overflow-wrap: anywhere;
 }
 .error {
@@ -615,6 +908,34 @@ output {
 }
 .success {
   color: var(--accent);
+}
+.center {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  max-width: 34rem;
+}
+@media (max-width: 900px) {
+  .page-head,
+  .intro,
+  .tool-grid {
+    display: grid;
+  }
+  .page-head {
+    gap: 14px;
+  }
+  .tool-grid {
+    grid-template-columns: 1fr;
+  }
+  .session {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .intro__actions {
+    justify-items: start;
+    text-align: left;
+    max-width: none;
+  }
 }
 `;
 
