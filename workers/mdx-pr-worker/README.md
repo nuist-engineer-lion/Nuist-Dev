@@ -1,24 +1,29 @@
 # Nuist DEV MDX PR Worker
 
-Cloudflare Worker 投稿入口。用户通过 GitHub OAuth 登录后提交 MDX 正文和图片附件，Worker 用仓库 Bot token 创建分支、提交文件并打开 PR。
+Cloudflare Worker 投稿入口。用户通过 GitHub App 的 OAuth 登录后提交 MDX 正文和图片附件，Worker 用该 App 的安装令牌创建分支、提交文件并打开 PR。commit 作者归属为投稿者，PR 由 App 发起。
 
-## GitHub OAuth App
+## GitHub App
 
-在 GitHub 创建 OAuth App：
+创建一个 GitHub App，同时承担用户 OAuth 登录与仓库写入：
 
 - Homepage URL：Worker 部署后的域名
 - Authorization callback URL：`https://<worker-domain>/auth/github/callback`
+- 仓库权限：`Contents`（读写）、`Pull requests`（写）
+- 安装到 `nuist-engineer-lion/Nuist-Dev`，记录 App ID、私钥、Installation ID
 
 ## Cloudflare secrets
 
 ```bash
 pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_CLIENT_ID
 pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_CLIENT_SECRET
-pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_BOT_TOKEN
+pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_APP_ID
+pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_APP_PRIVATE_KEY
+pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_APP_INSTALLATION_ID
 pnpm --dir workers/mdx-pr-worker wrangler secret put SESSION_SECRET
 ```
 
-`GITHUB_BOT_TOKEN` 需要能在 `nuist-engineer-lion/Nuist-Dev` 写 contents 并创建 pull requests。
+`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` 取自同一个 GitHub App（替换旧的独立 OAuth App）。
+`GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` 用于签发 Installation Access Token（1 小时有效、自动轮换）。App 需对 `nuist-engineer-lion/Nuist-Dev` 拥有 `Contents` 写权限并创建 pull requests。提交的 commit 作者为投稿用户（`id+login@users.noreply.github.com`），PR 发起者为 App。
 
 ## Local development
 
@@ -27,7 +32,7 @@ pnpm worker:dev
 pnpm worker:typecheck
 ```
 
-本地调试 OAuth 时，GitHub OAuth App 的 callback URL 需要指向 Wrangler dev 暴露的实际 URL。
+本地调试 OAuth 时，GitHub App 的 callback URL 需要指向 Wrangler dev 暴露的实际 URL。
 
 ## Submission rules
 

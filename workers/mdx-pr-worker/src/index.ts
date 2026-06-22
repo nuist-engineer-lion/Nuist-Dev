@@ -3,7 +3,9 @@
 type Env = {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
-  GITHUB_BOT_TOKEN: string;
+  GITHUB_APP_ID: string;
+  GITHUB_APP_PRIVATE_KEY: string;
+  GITHUB_APP_INSTALLATION_ID: string;
   SESSION_SECRET: string;
   GITHUB_OWNER?: string;
   GITHUB_REPO?: string;
@@ -275,7 +277,9 @@ async function handleSubmit(
   branch: string;
 }> {
   requireEnv(env, [
-    "GITHUB_BOT_TOKEN",
+    "GITHUB_APP_ID",
+    "GITHUB_APP_PRIVATE_KEY",
+    "GITHUB_APP_INSTALLATION_ID",
     "GITHUB_OWNER",
     "GITHUB_REPO",
     "BASE_BRANCH",
@@ -354,6 +358,8 @@ async function handleSubmit(
       description,
     }),
     files,
+    userName: session.login,
+    userEmail: `${session.id}+${session.login}@users.noreply.github.com`,
   });
 
   return {
@@ -1264,6 +1270,8 @@ async function createPullRequestWithFiles(
     commitMessage: string;
     body: string;
     files: RepoFile[];
+    userName: string;
+    userEmail: string;
   }
 ): Promise<{ html_url: string }> {
   const owner = env.GITHUB_OWNER;
@@ -1316,6 +1324,7 @@ async function createPullRequestWithFiles(
       }),
     }
   );
+  const commitTimestamp = new Date().toISOString();
   const commit = await githubJson<{ sha: string }>(
     env,
     `/repos/${owner}/${repo}/git/commits`,
@@ -1325,6 +1334,16 @@ async function createPullRequestWithFiles(
         message: input.commitMessage,
         tree: tree.sha,
         parents: [baseRef.object.sha],
+        author: {
+          name: input.userName,
+          email: input.userEmail,
+          date: commitTimestamp,
+        },
+        committer: {
+          name: input.userName,
+          email: input.userEmail,
+          date: commitTimestamp,
+        },
       }),
     }
   );
@@ -1437,11 +1456,12 @@ async function githubFetch(
   path: string,
   init: RequestInit = {}
 ): Promise<Response> {
+  const token = await getAppInstallationToken(env);
   return fetch(`https://api.github.com${path}`, {
     ...init,
     headers: {
       Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${env.GITHUB_BOT_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       "User-Agent": "Nuist-Dev-MDX-PR-Worker",
       "X-GitHub-Api-Version": "2022-11-28",
@@ -1459,6 +1479,131 @@ async function throwGitHubError(response: Response): Promise<never> {
     // Ignore non-JSON GitHub error responses.
   }
   throw new HttpError(response.status, message);
+}
+
+// ---------- GitHub App 安装令牌 ----------
+
+interface AppTokenCache {
+  token: string;
+  expiresAt: number;
+}
+
+let appTokenCache: AppTokenCache | null = null;
+
+async function getAppInstallationToken(env: Env): Promise<string> {
+  if (appTokenCache && appTokenCache.expiresAt > Date.now()) {
+    return appTokenCache.token;
+  }
+  requireEnv(env, [
+    "GITHUB_APP_ID",
+    "GITHUB_APP_PRIVATE_KEY",
+    "GITHUB_APP_INSTALLATION_ID",
+  ]);
+  const jwt = await createAppJWT(env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY);
+  const response = await fetch(
+    `https://api.github.com/app/installations/${env.GITHUB_APP_INSTALLATION_ID}/access_tokens`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "Nuist-Dev-MDX-PR-Worker",
+      },
+    }
+  );
+  if (!response.ok) {
+    appTokenCache = null;
+    let detail = "";
+    try {
+      const body = await response.json<{ message?: string }>();
+      detail = body.message ?? "";
+    } catch {
+      // 忽略非 JSON 错误响应。
+    }
+    throw new HttpError(
+      500,
+      `无法获取 GitHub App 安装令牌：HTTP ${response.status}${
+        detail ? `（${detail}）` : ""
+      }`
+    );
+  }
+  const data = await response.json<{ token: string; expires_at: string }>();
+  appTokenCache = {
+    token: data.token,
+    // 提前 5 分钟失效，避免用到临期令牌。
+    expiresAt: Date.parse(data.expires_at) - 5 * 60 * 1000,
+  };
+  return appTokenCache.token;
+}
+
+async function createAppJWT(
+  appId: string,
+  privateKeyPem: string
+): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = { alg: "RS256", typ: "JWT" };
+  const payload = { iat: now - 60, exp: now + 10 * 60, iss: appId };
+  const headerB64 = base64UrlEncode(ENCODER.encode(JSON.stringify(header)));
+  const payloadB64 = base64UrlEncode(ENCODER.encode(JSON.stringify(payload)));
+  const signingInput = `${headerB64}.${payloadB64}`;
+  const key = await importAppPrivateKey(privateKeyPem);
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    ENCODER.encode(signingInput)
+  );
+  const signatureB64 = base64UrlEncode(new Uint8Array(signature));
+  return `${signingInput}.${signatureB64}`;
+}
+
+// 兼容 PKCS#1（BEGIN RSA PRIVATE KEY）与 PKCS#8（BEGIN PRIVATE KEY）两种私钥格式。
+async function importAppPrivateKey(pem: string): Promise<CryptoKey> {
+  const isPkcs1 = /-----BEGIN RSA PRIVATE KEY-----/.test(pem);
+  const body = pem
+    .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----/g, "")
+    .replace(/-----END [A-Z ]*PRIVATE KEY-----/g, "")
+    .replace(/\s+/g, "");
+  const der = base64ToBytes(body);
+  const pkcs8Der = isPkcs1 ? wrapRsaPkcs1AsPkcs8(der) : der;
+  return crypto.subtle.importKey(
+    "pkcs8",
+    pkcs8Der,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+}
+
+// 将 PKCS#1 RSAPrivateKey 包装成 WebCrypto 可导入的 PKCS#8 PrivateKeyInfo。
+function wrapRsaPkcs1AsPkcs8(pkcs1Der: Uint8Array): Uint8Array {
+  const algorithmIdentifier = new Uint8Array([
+    0x02, 0x01, 0x00,
+    0x30, 0x0d,
+    0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01,
+    0x05, 0x00,
+  ]);
+  const keyLength = pkcs1Der.length;
+  const sequenceLength = algorithmIdentifier.length + 4 + keyLength;
+  const result = new Uint8Array(4 + sequenceLength);
+  let offset = 0;
+  result[offset++] = 0x30;
+  result[offset++] = 0x82;
+  result[offset++] = (sequenceLength >> 8) & 0xff;
+  result[offset++] = sequenceLength & 0xff;
+  result.set(algorithmIdentifier, offset);
+  offset += algorithmIdentifier.length;
+  result[offset++] = 0x04;
+  result[offset++] = 0x82;
+  result[offset++] = (keyLength >> 8) & 0xff;
+  result[offset++] = keyLength & 0xff;
+  result.set(pkcs1Der, offset);
+  return result;
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 
 async function readSession(
