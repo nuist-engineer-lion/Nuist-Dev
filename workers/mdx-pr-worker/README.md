@@ -20,6 +20,7 @@ pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_APP_ID
 pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_APP_PRIVATE_KEY
 pnpm --dir workers/mdx-pr-worker wrangler secret put GITHUB_APP_INSTALLATION_ID
 pnpm --dir workers/mdx-pr-worker wrangler secret put SESSION_SECRET
+pnpm --dir workers/mdx-pr-worker wrangler secret put IMGBED_TOKEN
 ```
 
 `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` 取自同一个 GitHub App（替换旧的独立 OAuth App）。
@@ -38,7 +39,13 @@ pnpm worker:typecheck
 
 - `pubDatetime` 由 Worker 服务端按 `Asia/Shanghai` 当前日期生成，表单和 API 都不接受客户端传入发布日期。
 - 文章写入 `src/content/posts/yy/mm/{slug}.mdx`。
-- 附件写入 `public/uploads/posts/yy/mm/{slug}/`。
+- 附件上传到独立图床 `https://imgbed.nuist.dev/`。
 - 附件只支持 `png`、`jpg`、`jpeg`、`webp`、`avif`、`gif`、`svg`。
-- 正文使用 `{{file:name.png}}` 引用附件；提交时会替换成 public 绝对路径。
+- 正文使用 `{{file:name.png}}` 引用附件；提交时会替换成图床绝对 URL。
 - 新文章默认 `draft: true`，合并前由维护者审核。
+
+## Image bed
+
+- Worker 会把附件转发到 `IMGBED_URL`，默认是 `https://imgbed.nuist.dev`。
+- 上传时会带 `X-Upload-Token: <IMGBED_TOKEN>`。
+- 默认目录前缀为 `posts`，实际上传目录为 `posts/YYYY/MM/{slug}`。

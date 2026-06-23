@@ -13,6 +13,8 @@
     "GITHUB_REPO": "Nuist-Dev",
     "BASE_BRANCH": "main",
     "BASE_PATH": "/contribute/new",
-    "TIMEZONE": "Asia/Shanghai"
+    "TIMEZONE": "Asia/Shanghai",
+    "IMGBED_URL": "https://imgbed.nuist.dev",
+    "IMGBED_FOLDER_PREFIX": "posts"
   }
 }

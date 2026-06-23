@@ -1,5 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 
+import { uploadAttachmentsToImageBed } from "./imgbed";
+
 type Env = {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
@@ -12,6 +14,9 @@ type Env = {
   BASE_BRANCH?: string;
   BASE_PATH?: string;
   TIMEZONE?: string;
+  IMGBED_URL?: string;
+  IMGBED_TOKEN?: string;
+  IMGBED_FOLDER_PREFIX?: string;
 };
 
 type GitHubUser = {
@@ -43,8 +48,7 @@ type Attachment = {
   safeName: string;
   mime: string;
   size: number;
-  publicPath: string;
-  repoPath: string;
+  contentPath: string;
   bytes: Uint8Array;
 };
 
@@ -316,12 +320,12 @@ async function handleSubmit(
 
   const yy = dates.yy;
   const mm = dates.mm;
-  const attachmentBasePath = `/uploads/posts/${yy}/${mm}/${slug}`;
-  const attachments = await parseAttachments(
-    form,
-    `public${attachmentBasePath}`,
-    attachmentBasePath
-  );
+  const attachments = await parseAttachments(form);
+  await uploadAttachmentsToImageBed(env, attachments, {
+    year: dates.yyyy,
+    month: dates.mm,
+    slug,
+  });
   const { body: bodyWithAttachmentPaths, coverPath } =
     resolveAttachmentReferences(body, attachments, coverAttachment);
 
@@ -338,10 +342,6 @@ async function handleSubmit(
   });
   const files: RepoFile[] = [
     { path: articlePath, content: ENCODER.encode(articleContent) },
-    ...attachments.map(attachment => ({
-      path: attachment.repoPath,
-      content: attachment.bytes,
-    })),
   ];
 
   const branch = `post/${dates.yyyymmdd}-${slug}-${randomHex(4)}`;
@@ -352,7 +352,7 @@ async function handleSubmit(
     body: buildPullRequestBody({
       submitter: session.login,
       articlePath,
-      attachmentPaths: attachments.map(attachment => attachment.repoPath),
+      attachmentPaths: attachments.map(attachment => attachment.contentPath),
       coverPath,
       tags,
       description,
@@ -365,7 +365,7 @@ async function handleSubmit(
   return {
     pullRequestUrl: pullRequest.html_url,
     articlePath,
-    attachmentPaths: attachments.map(attachment => attachment.repoPath),
+    attachmentPaths: attachments.map(attachment => attachment.contentPath),
     branch,
   };
 }
@@ -1012,9 +1012,7 @@ function rejectDangerousImports(body: string): void {
 }
 
 async function parseAttachments(
-  form: FormData,
-  repoDir: string,
-  publicDir: string
+  form: FormData
 ): Promise<Attachment[]> {
   const files = getAttachmentFiles(form);
 
@@ -1058,8 +1056,7 @@ async function parseAttachments(
       safeName,
       mime: file.type,
       size: file.size,
-      publicPath: `${publicDir}/${safeName}`,
-      repoPath: `${repoDir}/${safeName}`,
+      contentPath: "",
       bytes,
     });
   }
@@ -1192,7 +1189,7 @@ function resolveAttachmentReferences(
         throw new HttpError(400, `正文引用了未上传的附件：${name}`);
       }
       usedAttachments.add(attachment);
-      return attachment.publicPath;
+      return attachment.contentPath;
     }
   );
 
@@ -1206,7 +1203,7 @@ function resolveAttachmentReferences(
       throw new HttpError(400, "选择的封面图不在上传附件中。");
     }
     usedAttachments.add(cover);
-    coverPath = cover.publicPath;
+    coverPath = cover.contentPath;
   }
 
   for (const attachment of attachments) {
