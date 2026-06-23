@@ -37,12 +37,12 @@ pnpm worker:typecheck
 
 ## Submission rules
 
-- `pubDatetime` 由 Worker 服务端按 `Asia/Shanghai` 当前日期生成，表单和 API 都不接受客户端传入发布日期。
+- `pubDatetime` 由 Worker 服务端按 `Asia/Shanghai` 当前时间生成，表单和 API 都不接受客户端传入发布时间。
 - 文章写入 `src/content/posts/yy/mm/{slug}.mdx`。
 - 附件上传到独立图床 `https://imgbed.nuist.dev/`。
 - 附件只支持 `png`、`jpg`、`jpeg`、`webp`、`avif`、`gif`、`svg`。
 - 正文使用 `{{file:name.png}}` 引用附件；提交时会替换成图床绝对 URL。
-- 新文章默认 `draft: true`，合并前由维护者审核。
+- 新文章默认 `draft: false`，合并前由维护者审核。
 
 ## Image bed
 

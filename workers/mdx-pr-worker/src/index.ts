@@ -40,7 +40,12 @@ type DateParts = {
   yy: string;
   mm: string;
   dd: string;
+  hh: string;
+  min: string;
+  ss: string;
+  offset: string;
   yyyymmdd: string;
+  isoDatetime: string;
 };
 
 type Attachment = {
@@ -297,7 +302,7 @@ async function handleSubmit(
 
   const form = await request.formData();
   if (form.has("pubDate") || form.has("pubDatetime")) {
-    throw new HttpError(400, "发布日期由服务器生成，不能从客户端提交。");
+    throw new HttpError(400, "发布时间由服务器生成，不能从客户端提交。");
   }
 
   const dates = getShanghaiDateParts(env.TIMEZONE ?? "Asia/Shanghai");
@@ -332,7 +337,7 @@ async function handleSubmit(
   const articlePath = `src/content/posts/${yy}/${mm}/${slug}.mdx`;
   const articleContent = buildMdx({
     author,
-    pubDatetime: `${dates.yyyy}-${dates.mm}-${dates.dd}T12:00:00+08:00`,
+    pubDatetime: dates.isoDatetime,
     title,
     slug,
     tags,
@@ -387,10 +392,10 @@ function renderHomePage(session: Session | null, basePath: string): string {
           <h1>Nuist DEV 投稿入口</h1>
           <p class="lede">
             提交 MDX 草稿、图片附件和封面图，Worker 会自动创建 Pull Request。发布时间由服务端锁定为
-            Asia/Shanghai 当前日期。
+            Asia/Shanghai 当前时间。
           </p>
           <div class="meta-row" aria-label="投稿特性">
-            <span class="meta-chip">服务端锁定发布日期</span>
+            <span class="meta-chip">服务端锁定发布时间</span>
             <span class="meta-chip">仅支持图片附件</span>
             <span class="meta-chip">自动创建 PR</span>
           </div>
@@ -436,7 +441,7 @@ function renderIntroPanel(basePath: string): string {
       <p class="section-kicker">开始前</p>
       <h2>登录后就能提交</h2>
       <p class="section-copy">
-        表单会自动生成 frontmatter，发布日期由服务器锁定为 Asia/Shanghai 当前日期。附件只接受图片，正文里用
+        表单会自动生成 frontmatter，发布时间由服务器锁定为 Asia/Shanghai 当前时间。附件只接受图片，正文里用
         <code>{{file:name.png}}</code> 引用。
       </p>
     </div>
@@ -521,10 +526,10 @@ function renderSubmitForm(session: Session, basePath: string): string {
         </div>
       </div>
       <ul class="notes">
-        <li>发布日期由服务器生成，不接受手填。</li>
+        <li>发布时间由服务器按 Asia/Shanghai 当前时间生成，不接受手填。</li>
         <li>附件只允许图片，正文用 <code>{{file:name.png}}</code> 引用。</li>
         <li>附件至少要被正文引用一次，或被选作封面图。</li>
-        <li>新文章默认进入 <code>draft: true</code>。</li>
+        <li>新文章默认进入 <code>draft: false</code>。</li>
       </ul>
       <div class="sidebar__meta">
         <div class="hint">
@@ -1247,7 +1252,7 @@ function buildMdx(input: {
     `title: ${yamlString(input.title)}`,
     `slug: ${input.slug}`,
     "featured: false",
-    "draft: true",
+    "draft: false",
     "tags:",
     ...input.tags.map(tag => `  - ${yamlString(tag)}`),
     `description: ${yamlString(input.description)}`,
@@ -1429,7 +1434,7 @@ ${attachmentLines}
 
 ## Further comments
 
-新文章默认 \`draft: true\`，请审核后再发布。
+新文章默认 \`draft: false\`，请审核后再发布。
 
 ## Related Issue
 
@@ -1757,16 +1762,32 @@ function getShanghaiDateParts(timeZone: string): DateParts {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+    timeZoneName: "longOffset",
   }).formatToParts(new Date());
   const yyyy = parts.find(part => part.type === "year")?.value ?? "1970";
   const mm = parts.find(part => part.type === "month")?.value ?? "01";
   const dd = parts.find(part => part.type === "day")?.value ?? "01";
+  const hh = parts.find(part => part.type === "hour")?.value ?? "00";
+  const min = parts.find(part => part.type === "minute")?.value ?? "00";
+  const ss = parts.find(part => part.type === "second")?.value ?? "00";
+  const offsetToken =
+    parts.find(part => part.type === "timeZoneName")?.value ?? "GMT+08:00";
+  const offset = offsetToken.replace(/^GMT/, "");
   return {
     yyyy,
     yy: yyyy.slice(-2),
     mm,
     dd,
+    hh,
+    min,
+    ss,
+    offset,
     yyyymmdd: `${yyyy}${mm}${dd}`,
+    isoDatetime: `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}${offset}`,
   };
 }
 
