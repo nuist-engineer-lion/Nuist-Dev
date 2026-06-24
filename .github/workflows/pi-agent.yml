@@ -25,6 +25,10 @@ jobs:
           # issue_comment 事件默认 checkout main，PR 代码不在；显式指向 PR 头
           ref: ${{ github.event.pull_request.head.sha || (github.event.issue.pull_request && format('refs/pull/{0}/head', github.event.issue.number)) || github.ref }}
 
+      - name: "🔧 Create local base branch ref (main)"
+        # actions/checkout 是 detached HEAD，无本地 main 引用，pi 的 git diff main 等命令需要它
+        run: git fetch origin main:main --depth=1 2>/dev/null || git branch main origin/main 2>/dev/null || true
+
       - name: "🤖 Run Pi agent"
         uses: Mieluoxxx/pi-action@v1
         with:
