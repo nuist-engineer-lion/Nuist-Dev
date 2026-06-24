@@ -1,0 +1,137 @@
+---
+author: Mieluoxxx
+pubDatetime: 2026-06-24T14:30:00+08:00
+title: pi-action：给 PR/Issue 接入 Pi coding agent
+slug: pi-action-intro
+featured: false
+draft: false
+tags:
+  - GitHub Actions
+  - 代码审查
+  - Pi
+  - 自动化
+  - Mieluoxxx
+description: "一个把 Pi coding agent 接入 GitHub issue/PR 的 Action，支持 @pi-agent 评论触发和 PR 打开自动触发，默认只读、多层权限门控，兼容 Anthropic/OpenAI/Google 及任意自定义端点。"
+---
+import GithubBookmark from '@/components/GithubBookmark.astro';
+
+<GithubBookmark
+  owner="Mieluoxxx"
+  repo="pi-action"
+  url="https://github.com/Mieluoxxx/pi-action"
+  description="在 GitHub issue/PR 上运行 Pi coding agent 的 Action"
+  language="TypeScript"
+  languageColor="#3178c6"
+  stars={0}
+  forks={0}
+  license="MIT"
+/>
+
+`pi-action` 解决的问题很具体：怎么在 GitHub Actions 里跑 [Pi coding agent](https://github.com/earendil-works/pi)，让它读你的仓库、在 PR 或 issue 里给出意见，同时又不必把写权限交出去。
+
+它不是一个机器人框架，也不是另一个 Copilot。本质是一层薄薄的封装——监听 issue/PR 事件，按你给的权限策略装好 Pi，把它的 JSONL 事件流解析成评论发回去。
+
+## 触发模式
+
+两种触发方式可以共存：
+
+| 模式 | 何时跑 | 配置 |
+| --- | --- | --- |
+| 评论触发 | 有人评论 `@pi-agent <任务>` | 默认，`trigger_phrase: '@pi-agent'` |
+| 直接触发 | PR/issue 打开时自动 | `direct_prompt: '<让 pi 做什么>'` |
+
+直接触发靠 `direct_prompt` 控制：留空就只接受评论触发；填上就在新 PR 打开时自动跑一遍。两者同时设置就是双模式。
+
+## 只读与写入模式
+
+默认**只读**。Pi 只拿到 `read`、`grep`、`find`、`ls` 四个工具，看代码、不给建议之外的任何副作用。
+
+打开 `write_mode: 'true'` 才会追加 `edit`、`write`、`bash`，并且 action 会把改动 commit 并推到 PR 分支。公共仓库开 write_mode 要格外小心——任何能评论的人都能在你的 runner 上执行 shell。配套用 `allowed_users: 'alice,bob'` 收紧触发者白名单。
+
+## 安全模型
+
+这是项目最值得读的部分。Pi 本身没有权限系统，它继承 runner 进程能做的一切。pi-action 用四层闸门补上：
+
+1. **工具白名单**——只读模式默认四个工具，write_mode 才放行写和 bash。
+2. **权限门控**——只有 `OWNER`/`MEMBER`/`COLLABORATOR` 关联的用户，或在 `allowed_users` 名单里的人，才能触发；其他人直接拒绝。
+3. **自触发守卫**——`pi-action` 自己和所有 `*[bot]` 账号的评论被忽略，避免循环。
+4. **Token 屏蔽**——`GITHUB_TOKEN` 从 Pi 的环境变量里抹掉，即便 Pi 想 `git push` 也无法鉴权。真正的推送由 action 自己在 Pi 触不到的一层完成。
+
+四层叠起来，对不可信 PR 的默认姿态是：只读 + 收紧 workflow 的 `permissions:` + `allowed_users`。
+
+## 提供商与自定义端点
+
+开箱支持 Anthropic、OpenAI、Google 三家。更有用的是**自定义端点**——只要给出 `base_url`，pi-action 就会在 `~/.pi/agent/models.json` 里写一个 `custom` provider，指向你的端点：
+
+```yaml
+- uses: Mieluoxxx/pi-action@v1
+  with:
+    base_url: 'https://api.deepseek.com/anthropic'
+    api: anthropic-messages          # 或 openai-completions / openai-responses / google-generative-ai
+    model: 'deepseek-v4-flash'
+    api_key: ${{ secrets.PI_API_KEY }}
+```
+
+`base_url` 一旦设置，`provider` 入参被忽略，协议由 `api` 决定。DeepSeek、OpenRouter、Azure、公司内部代理都能接进来。
+
+## 输入与输出
+
+输入比较多，常用的几个：
+
+| 输入 | 默认 | 作用 |
+| --- | --- | --- |
+| `trigger_phrase` | `@pi-agent` | 评论触发词 |
+| `direct_prompt` | 空 | PR/issue 打开时的自动任务 |
+| `write_mode` | `false` | 是否放行写和 bash |
+| `timeout` | `600` | 单次 pi 运行的硬超时秒数 |
+| `allowed_users` | 空 | 额外允许触发的用户名白名单 |
+| `exclude_tools` | 空 | 在 write_mode 之上再禁用的工具 |
+| `append_system_prompt` | 空 | 追加到默认 system prompt 之后 |
+
+输出两个：`triggered`（是否真的跑了）和 `response`（最终回复文本，截断到 60k 字符）。完整输入表见 [README](https://github.com/Mieluoxxx/pi-action#inputs)。
+
+## 最小可用配置
+
+一个只读、双触发、走 DeepSeek 端点的完整 workflow：
+
+```yaml
+name: Pi Agent
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request:
+    types: [opened]
+
+jobs:
+  pi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: Mieluoxxx/pi-action@v1
+        with:
+          base_url: 'https://api.deepseek.com/anthropic'
+          api: anthropic-messages
+          model: 'deepseek-v4-flash'
+          api_key: ${{ secrets.PI_API_KEY }}
+          direct_prompt: '仅针对 PR 改动点进行评判'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+`fetch-depth: 0` 让 Pi 拿到完整仓库上下文；`contents: read` 把写权限卡死在 action 层；`direct_prompt` 聚焦在改动审查上，避免对新 PR 噪声过大。
+
+## 一点评价
+
+pi-action 把"让 LLM agent 参与 PR"这件容易做重的事做得很轻：一个 action、一份 YAML、一个 secret 就能跑起来。真正撑起它的是那四层安全闸门——工具白名单、权限门控、自触发守卫、Token 屏蔽——让"只读 + 默认拒绝"成为合理默认，而不是写在你得自己实现的 TODO 里。
+
+自定义端点支持是另一个加分项。它不绑死任何模型供应商，DeepSeek、OpenRouter、自建代理都能接，`api` 协议字段比单纯 `provider` 枚举更通用。
+
+如果你的仓库 `main` 受保护、PR 需要审查，又不想给一个外部服务写权限，pi-action 是目前最干净的接法之一。半小时内能跑通，剩下的就是调 `direct_prompt` 和 `allowed_users`。
