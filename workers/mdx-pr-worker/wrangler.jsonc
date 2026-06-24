@@ -4,9 +4,18 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-06-21",
   "routes": [
-    "hub.nuist.dev/contribute/new/auth/*",
-    "hub.nuist.dev/contribute/new/api/*",
-    "hub.nuist.dev/contribute/new/logout"
+    {
+      "pattern": "hub.nuist.dev/contribute/new/auth/*",
+      "zone_name": "nuist.dev"
+    },
+    {
+      "pattern": "hub.nuist.dev/contribute/new/api/*",
+      "zone_name": "nuist.dev"
+    },
+    {
+      "pattern": "hub.nuist.dev/contribute/new/logout",
+      "zone_name": "nuist.dev"
+    }
   ],
   "vars": {
     "GITHUB_OWNER": "nuist-engineer-lion",
